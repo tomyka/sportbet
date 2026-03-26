@@ -1,0 +1,14 @@
+Options -Indexes
+RewriteEngine on
+
+# Redirect to /el2025/public/ for sportbet.lt or www.sportbet.lt
+RewriteCond %{HTTP_HOST} ^sportbet.lt$ [NC,OR]
+RewriteCond %{HTTP_HOST} ^www.sportbet.lt$
+RewriteCond %{REQUEST_URI} !^/el2025/public/
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^(.*)$ /el2025/public/$1 [L]
+
+# Append .php to files if they exist
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
