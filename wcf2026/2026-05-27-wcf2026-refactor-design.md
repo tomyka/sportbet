@@ -88,6 +88,34 @@ Two services, one monorepo, deployed independently:
 - **Neon Postgres**: generous always-free tier, database branching enables real preview envs in CI.
 - **Sanctum SPA cookie auth**: HttpOnly + CSRF protected, no JWT rotation pain; ideal for first-party SPAs.
 
+### 3.1.1 Domain & cookie strategy (auth across CF Pages + Fly.io)
+
+Sanctum SPA cookie auth requires the SPA and the API to share a parent domain so the session cookie is first-party. Default platform hostnames (`*.pages.dev` and `*.fly.dev`) are **different registrable domains**, so `SameSite=Lax` cookies will not be sent on cross-site fetches. The design supports two strategies; choice is recorded in ADR-0002 at Phase 0.
+
+**Strategy A (preferred): one custom domain, two subdomains.**
+
+| Environment | Frontend | Backend API | Session cookie |
+|---|---|---|---|
+| Production | `app.wcf2026.example` (CF Pages custom domain) | `api.wcf2026.example` (Fly.io custom domain) | `Domain=.wcf2026.example` |
+| PR preview | `app.pr-{n}.wcf2026.example` | `api.pr-{n}.wcf2026.example` | `Domain=.pr-{n}.wcf2026.example` (per-PR parent isolates preview cookies from production) |
+| Local | `http://app.lvh.me:5173` (Vite dev) | `http://api.lvh.me:8080` (Laravel) | `Domain=.lvh.me` |
+
+Realistic free / near-free domain options: a paid `.com`/`.net` (≈ $10/year — strictly speaking not "free" but the most reliable path); `.eu.org` (free, application-gated, slow); `.us.kg` or similar free TLDs (free but availability is unstable). **The "free infrastructure" requirement is preserved even if a domain is bought, because the rest of the stack (compute, DB, CDN) remains $0; a domain is the only realistic exception and is called out explicitly here.**
+
+**Strategy B (fully free, no domain): platform hostnames + `SameSite=None; Secure`.**
+
+If the user does not want to register any domain, the SPA runs on `*.pages.dev` and the API on `*.fly.dev`. Cookies are set with `SameSite=None; Secure` and CORS allow-list is explicit. This is slightly weaker for CSRF defense-in-depth (we still send and validate an `X-XSRF-TOKEN` header, so CSRF protection holds), and it breaks in browsers with third-party-cookie blocking enabled (e.g., Safari ITP). Acceptable for a hobby project, not recommended for serious use.
+
+**Configuration (Strategy A example):**
+- Laravel `SESSION_DOMAIN=.wcf2026.example` (leading dot, parent domain).
+- `SANCTUM_STATEFUL_DOMAINS=app.wcf2026.example,app.pr-*.wcf2026.example,app.lvh.me:5173`.
+- Session cookie: `HttpOnly`, `Secure`, `SameSite=Lax`.
+- CSRF cookie (`XSRF-TOKEN`) on the same domain.
+- CORS (`config/cors.php`): `paths=['api/*','sanctum/csrf-cookie']`, `allowed_origins=['https://app.wcf2026.example']` (plus preview pattern), `supports_credentials=true`.
+- Frontend `axios` configured with `withCredentials: true` and `baseURL=https://api.wcf2026.example/api/v1`.
+
+**Preview cookie isolation:** each PR preview uses its own parent domain (`.pr-{n}.wcf2026.example`) so that a stray prediction submitted in a preview environment cannot leak into the production session, and a logged-in production user opening a preview link is not silently authenticated there.
+
 ### 3.2 Backend modules (replace today's fat controllers)
 | Module | Responsibility |
 |---|---|
@@ -123,26 +151,70 @@ All FKs are `bigint` (Laravel `foreignId()`); times are `timestamptz` UTC; soft-
 - **`tournament_memberships`** — `user_id, tournament_id, role (player|admin|owner)`
 
 ### 4.2 Generic tournament structure
-- **`stages`** — `tournament_id, name, ord, type (group_stage|round_robin|knockout), config jsonb` (teams_advance, legs, tie-break rules, etc.)
-- **`groups`** — `stage_id, name` (only for group-based stages)
-- **`rounds`** — `stage_id, name, ord, deadline_at`
+- **`stages`** — `tournament_id, name, ord, type (group_stage|round_robin|knockout), config jsonb, starts_at, locks_at?` (teams_advance, legs, tie-break rules, etc. in `config`). `locks_at` defaults to `starts_at` (i.e., the earliest fixture's kickoff in the stage's first round) but admins can set it explicitly.
+- **`groups`** — `tournament_id, stage_id, name` (only for group-based stages)
+- **`rounds`** — `tournament_id, stage_id, name, ord, deadline_at`
 - **`teams`** — `tournament_id, name, short_name, logo_url`
-- **`team_stage_entries`** — `team_id, stage_id, group_id?, seed`
-- **`fixtures`** — `round_id, kickoff_at, home_team_id, away_team_id, status (scheduled|live|finished|cancelled), home_score, away_score, winner_team_id, neutral_venue, leg`
+- **`team_stage_entries`** — `tournament_id, team_id, stage_id, group_id?, seed`
+- **`fixtures`** — `tournament_id, round_id, kickoff_at, home_team_id, away_team_id, status (scheduled|live|finished|postponed|cancelled), home_score, away_score, home_score_et?, away_score_et?, home_score_pens?, away_score_pens?, winner_team_id?, neutral_venue, leg, tie_id?, original_kickoff_at?, notes?`
+- **`ties`** — `id, tournament_id, stage_id, label?` — groups multiple fixtures (legs) that resolve to a single aggregated knockout outcome. Required for two-legged knockouts; null otherwise. A `KnockoutAggregator` service consumes all fixtures sharing a `tie_id` and produces the aggregate winner using rules in `stages.config` (away-goals, ET, penalties).
 
 Supports World/Euro Cup, EuroLeague regular season + playoffs, and arbitrary shapes — configured per tournament, no code change.
 
+### 4.2.1 Fixture lifecycle & edge cases
+
+| Event | DB state | Effect on predictions & scoring |
+|---|---|---|
+| Scheduled normally | `status=scheduled`, scores null | Predictions accepted until `kickoff_at` |
+| Postponed before kickoff | `status=postponed`, `original_kickoff_at` set, new `kickoff_at` rescheduled | Predictions reopen with new deadline; audit logged; users notified by email (Phase 7) |
+| Rescheduled (kickoff_at moved earlier) | `kickoff_at` updated | Already-locked predictions stay locked; predictions submitted before the new earlier kickoff remain valid |
+| Started | `status=live` (set by admin or scheduler when current time ≥ kickoff) | All score predictions locked; further edits rejected with 423 |
+| Finished — regulation only | `status=finished`, scores set, `winner_team_id` set (null = draw) | Scoring job enqueued; idempotent |
+| Finished — extra time | extra-time scores set; `winner_team_id` set from ET totals | Score-prediction scoring uses regulation scores only; `winner_team_id` flows into bracket/survival scoring |
+| Finished — penalties | penalty scores set; `winner_team_id` set from shoot-out | Same as above |
+| Cancelled | `status=cancelled` | All score predictions for this fixture nullified (no points awarded or deducted); audit logged. Bracket/survival predictions referencing the affected team remain valid; if the cancellation eliminates a team, bracket strategy treats the team as "did not advance from this round" |
+| Result correction | Admin edits a `finished` fixture | Old `score_results` rows for this fixture deleted; scoring job re-enqueued; full `audit_events` entry recording `before` and `after`; downstream `leaderboard_entries` refreshed |
+| Two-legged ties | Both leg fixtures share a `tie_id`. The two fixtures' `(home_team_id, away_team_id)` are typically swapped between legs but uniqueness/aggregation is keyed on `tie_id`, not team pairs (so repeat matchups across the tournament are unambiguous). Aggregate determined by a `KnockoutAggregator` service; away-goals rule configurable in `stages.config` | Each leg is scored independently for score-prediction; aggregate result drives bracket/survival |
+
+Result correction is the most error-prone operation; it is covered by a dedicated integration test suite ensuring idempotent recalculation, correct audit trail, and leaderboard convergence.
+
 ### 4.3 Predictions (one table per mode)
-- **`score_predictions`** — `user_id, fixture_id, home_score, away_score, submitted_at` (unique `(user_id, fixture_id)`; server rejects edits past `kickoff_at`)
-- **`bracket_predictions`** — `user_id, stage_id, team_id, payload jsonb` (e.g., `{predicted_group_position: 2}` or `{advances_to: "semifinal"}`); a per-stage **strategy class** validates payload shape against `stages.type`; locked at stage start
-- **`survival_picks`** — `user_id, round_id, team_id, eliminated_at?` (one pick per round, locked at `round.deadline_at`)
+- **`score_predictions`** — `tournament_id, user_id, fixture_id, home_score, away_score, predicted_winner_team_id?, submitted_at` (unique `(user_id, fixture_id)`; server rejects edits past `fixtures.kickoff_at`). `home_score` / `away_score` are **regulation-time** predictions and drive exact-score / goal-diff scoring. `predicted_winner_team_id` is **required for knockout-stage fixtures and optional otherwise**; it lets a user predict the eventual advancing team when they predict a draw at regulation time (e.g., "1-1, home wins on penalties"). The `correct_winner` point rule fires when `predicted_winner_team_id` matches `fixtures.winner_team_id` (regardless of how the winner was determined — regulation, ET, or penalties).
+- **`bracket_predictions`** — `tournament_id, user_id, stage_id, team_id, payload jsonb`; one row per `(user_id, stage_id, team_id)`. Locked at `stages.locks_at`.
+- **`survival_picks`** — `tournament_id, user_id, round_id, team_id, eliminated_at?` (one pick per `(user_id, round_id)`, locked at `rounds.deadline_at`).
+
+### 4.3.1 Bracket prediction payload schemas (per stage type)
+
+The `payload jsonb` column is validated by a per-stage strategy class. Schemas:
+
+| `stages.type` | Required payload fields | Meaning | Scoring contract |
+|---|---|---|---|
+| `group_stage` | `{ predicted_group_position: int (1..N) }` | User's predicted finishing position for this team within its group | `point_rules.exact_group_position` if equal to actual; `point_rules.close_group_position` if off by 1 (configurable); 0 otherwise |
+| `round_robin` | `{ predicted_final_position: int (1..N) }` | User's predicted final standing across the whole round-robin stage | `point_rules.exact_final_position`; tiered close-match points configurable in `point_rules` |
+| `knockout` | `{ furthest_round_reached: enum }` where enum values come from `stages.config.rounds[]` (e.g., `["r16","qf","sf","final","winner"]`) | How far the team will get | `point_rules.knockout_exact` for exact; `point_rules.knockout_per_round` × rounds correctly cleared, otherwise (i.e., reward partial correctness) |
+
+**Validation:** request hits `PUT /stages/{id}/bracket-prediction` with a list of `{ team_id, payload }` entries. The Laravel Form Request invokes `BracketPredictionStrategy::for($stage->type)->validatePayload($payload, $stage->config)`. Invalid payloads → 422 with field-level errors. Strategy classes live in `app/Domain/Predictions/Strategies/` and are unit-tested per type.
+
+**Full-bracket invariants** (enforced by the strategy after per-row validation):
+
+| Stage type | Invariants |
+|---|---|
+| `group_stage` | (a) Every team in every group must appear exactly once. (b) `predicted_group_position` values within a single group must be a permutation of `1..N` (no duplicates, no gaps). (c) Each `team_id` must belong to the stage's `team_stage_entries` and to the correct group. |
+| `round_robin` | (a) Every team in the stage must appear exactly once. (b) `predicted_final_position` values must be a permutation of `1..N`. (c) Each `team_id` must belong to the stage's `team_stage_entries`. |
+| `knockout` | (a) Every team in the stage must appear exactly once. (b) `furthest_round_reached` values must be self-consistent: the number of teams reaching each round equals the round's capacity in `stages.config.rounds[]` (e.g., exactly 8 teams reach `qf`, 4 reach `sf`, 1 reaches `winner`). (c) Each `team_id` must belong to the stage's `team_stage_entries`. |
+
+Violations return 422 with a top-level `errors.bracket` describing the rule that failed and which entries are inconsistent. Strategy classes implement this as a pure function over the full payload set; tested with property-based tests (Pest's `Eris` plugin or fixtures).
+
+**Locking:** all bracket predictions for a stage are locked atomically when the stage starts. After locking, the endpoint returns 423 Locked on writes.
+
+**Editing:** before lock, users may update their full bracket idempotently — the endpoint accepts the complete bracket and replaces it (`UPSERT` per `(user_id, stage_id, team_id)`).
 
 ### 4.4 Scoring engine
 - **`point_rules`** — `tournament_id, mode, key (exact_score|correct_winner|goal_diff|survived_round|...), value decimal`
 - **`points_matrix`** — `tournament_id, home_diff, away_diff, points` (per-tournament, replaces the old global `points_calculations`)
-- **`score_results`** — `user_id, fixture_id, breakdown jsonb, total_points`
-- **`bracket_results`** — `user_id, stage_id, total_points`
-- **`survival_results`** — `user_id, round_id, points`
+- **`score_results`** — `tournament_id, user_id, fixture_id, breakdown jsonb, total_points`
+- **`bracket_results`** — `tournament_id, user_id, stage_id, total_points`
+- **`survival_results`** — `tournament_id, user_id, round_id, points`
 - **`leaderboard_entries`** — `(tournament_id, competition_id?, user_id, mode, total_points, rank)` — denormalized, refreshed by a queued job whenever a result changes (idempotent)
 
 ### 4.5 Private competitions
@@ -158,16 +230,29 @@ Supports World/Euro Cup, EuroLeague regular season + playoffs, and arbitrary sha
 
 ### 4.7 Design decisions worth flagging
 1. Term split removed naming collision (`groups` vs `competitions`).
-2. Denormalized `tournament_id` + global scope prevents cross-tenant data leaks.
-3. UTC in DB; user TZ only at render.
-4. Predictions never deletable, only locked, to preserve integrity.
-5. Postgres `jsonb` with check constraints where useful; structural validation in PHP value objects.
+2. Denormalized `tournament_id` + global scope prevents cross-tenant data leaks at the application layer.
+3. **Composite FK constraints enforce tenant integrity at the DB layer.** Any cross-table reference that could cross tenants (e.g., `fixtures.home_team_id` and `fixtures.tournament_id`, `score_predictions.fixture_id` and `score_predictions.tournament_id`, `team_stage_entries.team_id`/`.stage_id` and `.tournament_id`) is constrained via a composite foreign key referencing the parent's `(id, tournament_id)`. The parent tables therefore declare a `UNIQUE (id, tournament_id)` constraint to make composite FKs possible. This guarantees that a row's children belong to the same tournament — a forgotten `where` cannot create cross-tenant rows.
+4. UTC in DB; user TZ only at render.
+5. Predictions never deletable, only locked, to preserve integrity.
+6. Postgres `jsonb` with check constraints where useful; structural validation in PHP value objects.
 
 ---
 
 ## 5. API surface
 
 Base: `/api/v1`, JSON only, Sanctum SPA cookie auth, CSRF protected. Default rate limit `60/min`; auth endpoints `5/min`. OpenAPI 3.1 spec generated from PHP attributes (Scramble); committed to `docs/api/openapi.yaml`; CI verifies the committed spec matches code. Frontend types & zod schemas derived via `openapi-typescript`.
+
+### 5.0 Access tiers (resolves "public vs auth'd" ambiguity)
+
+Three tiers, applied via route middleware groups:
+
+| Tier | Auth required? | Examples |
+|---|---|---|
+| **Public** | No | `GET /tournaments`, `GET /tournaments/{slug}`, `GET /tournaments/{slug}/stages|teams|fixtures` (when tournament `status != draft`), `GET /tournaments/{slug}/leaderboard` **without** `competition_id` filter (global tournament leaderboard only), `GET /sanctum/csrf-cookie` (note: this route is at the application root, **outside** `/api/v1`, as provided by Sanctum) |
+| **Authenticated** | Yes (Sanctum session, email-verified) | All `predictions/*` reads & writes, `competitions/*` (incl. **`GET /tournaments/{slug}/leaderboard?competition_id=…`** which requires the caller to be an active member of that competition), `PATCH /auth/me`, `auth/logout` |
+| **Authorized** | Yes + policy | All admin endpoints — gated by `tournament_memberships.role ∈ {admin,owner}` for tournament-scoped admin, or `users.is_global_admin = true` for cross-tournament admin (e.g., `POST /tournaments`) |
+
+Draft tournaments are visible only to their owner + assigned admins. Phase 2's "public read APIs" means **tier 1** for non-draft tournaments. **Private competition leaderboards are never public** — passing `competition_id` to the leaderboard endpoint requires the caller to be a member of that competition (`competition_memberships.status = active`); non-members receive 403.
 
 ### 5.1 Endpoints (abbreviated)
 
@@ -178,7 +263,7 @@ POST  /auth/email/verify        POST  /auth/password/forgot  POST  /auth/passwor
 GET   /auth/me                  PATCH /auth/me               POST  /auth/password
 GET   /sanctum/csrf-cookie
 
-# Tournaments (read = any auth'd; write = tournament admin/owner)
+# Tournaments (read = public for non-draft per §5.0; write = tournament admin/owner)
 GET    /tournaments
 POST   /tournaments                                  (global admin)
 GET    /tournaments/{slug}
@@ -286,7 +371,6 @@ sportbet/                           (existing git repo)
 │  │  ├─ app/{Domain,Http,Models,Policies,Services,Jobs,Console}
 │  │  ├─ database/{migrations,factories,seeders}
 │  │  ├─ tests/{Unit,Feature,Contract}
-│  │  ├─ openapi/                   generated spec
 │  │  └─ Dockerfile  fly.toml  composer.json
 │  ├─ frontend/                     React + TS SPA/PWA
 │  │  ├─ src/{app,features/{auth,tournaments,predictions,leaderboards,competitions,profile,admin},shared}
