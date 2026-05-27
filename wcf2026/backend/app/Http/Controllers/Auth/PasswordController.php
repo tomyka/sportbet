@@ -12,20 +12,22 @@ class PasswordController extends Controller
     public function __invoke(ChangePasswordRequest $request): Response
     {
         $user = $request->user();
-        if (! $user) {
-            abort(401);
-        }
+        assert($user !== null);
 
         $user->update(['password' => $request->string('password')->value()]);
 
-        AuditLogger::record(
-            action: 'user.password_changed',
-            actorUserId: $user->id,
-            subjectType: 'user',
-            subjectId: $user->id,
-            ip: $request->ip(),
-            userAgent: $request->userAgent(),
-        );
+        try {
+            AuditLogger::record(
+                action: 'user.password_changed',
+                actorUserId: $user->id,
+                subjectType: 'user',
+                subjectId: $user->id,
+                ip: $request->ip(),
+                userAgent: $request->userAgent(),
+            );
+        } catch (\Throwable) {
+            // Audit failure must never prevent password change response
+        }
 
         return response()->noContent();
     }
