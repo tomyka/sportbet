@@ -1,7 +1,7 @@
 # 2. Cookie / domain strategy
 
 Date: 2026-05-27
-Status: Proposed (decision deferred to end of Phase 0)
+Status: Accepted
 
 ## Context
 
@@ -14,9 +14,20 @@ Two viable strategies (full detail in spec §3.1.1):
 
 ## Decision
 
-DEFERRED until the end of Phase 0 (specifically: revisited in Chunk 7 once both deploy workflows are wired and a domain choice can be made with full context). Phase 0 wires both options into config so the choice flips a single environment variable (`SESSION_SAME_SITE` and `SESSION_DOMAIN`). The chosen strategy will be documented here before the first production deploy.
+**Strategy A** chosen with domain **`sportbet.lt`**.
+
+Production configuration:
+- SPA: `https://app.sportbet.lt` (Cloudflare Pages with custom domain)
+- API: `https://api.sportbet.lt` (Fly.io with custom domain via TLS certificate)
+- `SESSION_DOMAIN=.sportbet.lt`
+- `SESSION_SAME_SITE=lax`
+- `SESSION_SECURE_COOKIE=true`
+- `SANCTUM_STATEFUL_DOMAINS=app.sportbet.lt`
 
 ## Consequences
 
-- Local development uses `.lvh.me` (a public DNS wildcard that resolves any subdomain to `127.0.0.1`) so cookies behave realistically without `/etc/hosts` edits.
-- Preview environments use `app.pr-{n}.<domain>` and `api.pr-{n}.<domain>` with `Domain=.pr-{n}.<domain>` — preview sessions are isolated from production by domain.
+- **Cost:** ~$10/yr for domain registration.
+- **DNS setup:** One-time configuration (nameservers to Cloudflare, CNAME for API with proxy OFF).
+- **Cookie behavior:** First-party cookies, `SameSite=Lax` — immune to third-party cookie deprecation, strongest CSRF protection.
+- **Local development:** Uses `.lvh.me` (public DNS wildcard resolving to `127.0.0.1`) so cookies behave realistically without `/etc/hosts` edits.
+- **Preview environments:** Use free platform hostnames (`*.pages.dev`, `*.fly.dev`) with `SameSite=None; Secure` since they lack a shared domain. Preview sessions are functionally isolated from production.
