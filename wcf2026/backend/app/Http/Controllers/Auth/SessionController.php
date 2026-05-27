@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -29,7 +30,21 @@ class SessionController extends Controller
             abort(401, 'Unauthenticated.');
         }
 
-        return response()->json(['data' => $user->only(['id', 'email', 'name'])]);
+        AuditLogger::record(
+            action: 'user.login',
+            actorUserId: $user->id,
+            subjectType: 'user',
+            subjectId: $user->id,
+            ip: $request->ip(),
+            userAgent: $request->userAgent(),
+        );
+
+        return response()->json(['data' => [
+            'id' => $user->id,
+            'email' => $user->email,
+            'name' => $user->name,
+            'email_verified' => $user->hasVerifiedEmail(),
+        ]]);
     }
 
     public function show(Request $request): JsonResponse
@@ -39,11 +54,29 @@ class SessionController extends Controller
             abort(401, 'Unauthenticated.');
         }
 
-        return response()->json(['data' => $user->only(['id', 'email', 'name'])]);
+        return response()->json(['data' => [
+            'id' => $user->id,
+            'email' => $user->email,
+            'name' => $user->name,
+            'display_name' => $user->display_name,
+            'time_zone' => $user->time_zone,
+            'locale' => $user->locale,
+            'email_verified' => $user->hasVerifiedEmail(),
+            'is_global_admin' => $user->is_global_admin,
+        ]]);
     }
 
     public function destroy(Request $request): Response
     {
+        $actorId = $request->user()?->id;
+
+        AuditLogger::record(
+            action: 'user.logout',
+            actorUserId: $actorId,
+            ip: $request->ip(),
+            userAgent: $request->userAgent(),
+        );
+
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
