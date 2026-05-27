@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 
-beforeEach(fn () => RateLimiter::clear('login|127.0.0.1'));
+beforeEach(fn () => Cache::flush());
 
 it('rate-limits login to 5 per minute per IP', function () {
     // Hit login 6 times with wrong credentials; 6th should be 429

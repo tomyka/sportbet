@@ -29,6 +29,15 @@ it('allows public access to POST /auth/password/forgot', function () {
     $this->postJson('/api/v1/auth/password/forgot', ['email' => 'x@x.com'])->assertNoContent();
 });
 
+it('allows public access to POST /auth/password/reset', function () {
+    // Returns 422 (validation fails) not 401 — proves route is public
+    $this->postJson('/api/v1/auth/password/reset', [])->assertUnprocessable();
+});
+
+it('rejects unauthenticated access to GET /auth/email/verify/{id}/{hash}', function () {
+    $this->getJson('/api/v1/auth/email/verify/1/fakehash')->assertUnauthorized();
+});
+
 it('allows public access to GET /api/v1/health', function () {
     $this->getJson('/api/v1/health')->assertOk();
 });
