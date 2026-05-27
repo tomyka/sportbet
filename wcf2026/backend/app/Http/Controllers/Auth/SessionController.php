@@ -70,16 +70,20 @@ class SessionController extends Controller
     {
         $actorId = $request->user()?->id;
 
-        AuditLogger::record(
-            action: 'user.logout',
-            actorUserId: $actorId,
-            ip: $request->ip(),
-            userAgent: $request->userAgent(),
-        );
-
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        try {
+            AuditLogger::record(
+                action: 'user.logout',
+                actorUserId: $actorId,
+                ip: $request->ip(),
+                userAgent: $request->userAgent(),
+            );
+        } catch (\Throwable) {
+            // Audit failure must never prevent logout
+        }
 
         return response()->noContent();
     }

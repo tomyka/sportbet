@@ -10,7 +10,8 @@ Route::prefix('v1')->group(function () {
 
     Route::post('/auth/register', RegisterController::class)->middleware('throttle:60,1');
 
-    Route::post('/auth/login', [SessionController::class, 'store']);
+    Route::post('/auth/login', [SessionController::class, 'store'])
+        ->middleware('throttle:5,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/auth/me', [SessionController::class, 'show']);
