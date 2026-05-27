@@ -19,7 +19,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'time_zone',
         'locale',
-        'is_global_admin',
     ];
 
     protected $hidden = [
