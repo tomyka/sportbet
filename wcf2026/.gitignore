@@ -35,6 +35,10 @@ phpunit-report.xml
 node_modules/
 vendor/
 
+# Composer lockfile MUST be committed for applications (override root .gitignore from legacy el2025)
+!composer.lock
+!**/composer.lock
+
 # PHP
 storage/framework/cache/data/*
 storage/framework/sessions/*
