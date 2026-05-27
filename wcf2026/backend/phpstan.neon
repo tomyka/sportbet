@@ -14,5 +14,7 @@ parameters:
         - '#Function something\(\) has no return type specified#'
         # Laravel scaffolded User model uses HasFactory without generic type
         - '#Class App\\Models\\User uses generic trait .* but does not specify its types#'
+        # Pest/Laravel test methods (withHeaders, etc.) not detected by PHPStan in test context
+        - '#Call to an undefined method PHPUnit\\Framework\\TestCase::(withHeaders|getJson)#'
     excludePaths:
         - app/Console/Kernel.php
