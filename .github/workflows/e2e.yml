@@ -1,0 +1,98 @@
+name: e2e
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wcf2026/backend/**'
+      - 'wcf2026/frontend/**'
+      - '.github/workflows/e2e.yml'
+  pull_request:
+    paths:
+      - 'wcf2026/backend/**'
+      - 'wcf2026/frontend/**'
+      - '.github/workflows/e2e.yml'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: wcf2026
+          POSTGRES_PASSWORD: wcf2026
+          POSTGRES_DB: wcf2026_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U wcf2026"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo, pdo_pgsql, bcmath, intl, zip
+          tools: composer:v2
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: wcf2026/frontend/pnpm-lock.yaml
+
+      - name: Install backend
+        working-directory: wcf2026/backend
+        run: |
+          composer install --prefer-dist --no-interaction
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: wcf2026_e2e
+
+      - name: Start backend
+        working-directory: wcf2026/backend
+        run: nohup php artisan serve --host=127.0.0.1 --port=8080 > backend.log 2>&1 &
+        env:
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: wcf2026_e2e
+          FRONTEND_URL: http://127.0.0.1:5173
+          SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:5173
+
+      - name: Install frontend
+        working-directory: wcf2026/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Build & preview frontend
+        working-directory: wcf2026/frontend
+        run: |
+          VITE_API_BASE_URL=http://127.0.0.1:8080 pnpm build
+          nohup pnpm exec vite preview --host 127.0.0.1 --port 5173 > vite.log 2>&1 &
+
+      - name: Wait for services
+        run: |
+          pnpm dlx wait-on http://127.0.0.1:8080/api/v1/health http://127.0.0.1:5173 --timeout 60000
+
+      - name: Run Playwright
+        working-directory: wcf2026/frontend
+        run: pnpm exec playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: wcf2026/frontend/playwright-report
