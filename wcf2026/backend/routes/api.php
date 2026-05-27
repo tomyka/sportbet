@@ -13,14 +13,14 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::get('/health', HealthController::class)->name('health');
 
-    Route::post('/auth/register', RegisterController::class)->middleware('throttle:60,1');
+    Route::post('/auth/register', RegisterController::class)->middleware('throttle:register');
 
     Route::post('/auth/login', [SessionController::class, 'store'])
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:login');
 
     // Public password-management routes
     Route::post('/auth/password/forgot', ForgotPasswordController::class)
-        ->middleware('throttle:3,60');
+        ->middleware('throttle:forgot-password');
     Route::post('/auth/password/reset', ResetPasswordController::class)
         ->middleware('throttle:6,1');
 
