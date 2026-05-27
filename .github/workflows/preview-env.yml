@@ -1,0 +1,102 @@
+name: preview-env
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  up:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Neon branch
+        id: neon
+        uses: neondatabase/create-branch-action@v5
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch_name: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create or update Fly preview app
+        working-directory: wcf2026/backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          PREVIEW_APP: wcf2026-backend-pr-${{ github.event.pull_request.number }}
+          NEON_DB_URL: ${{ steps.neon.outputs.db_url }}
+          PREVIEW_FRONTEND_URL: https://pr-${{ github.event.pull_request.number }}.wcf2026-frontend.pages.dev
+        run: |
+          flyctl apps create "$PREVIEW_APP" --org personal || true
+          flyctl secrets set --app "$PREVIEW_APP" \
+            APP_ENV=production \
+            DB_CONNECTION=pgsql \
+            DB_URL="$NEON_DB_URL" \
+            APP_KEY="${{ secrets.PREVIEW_APP_KEY }}" \
+            FRONTEND_URL="$PREVIEW_FRONTEND_URL" \
+            SANCTUM_STATEFUL_DOMAINS="pr-${{ github.event.pull_request.number }}.wcf2026-frontend.pages.dev" \
+            SESSION_DOMAIN="" \
+            SESSION_SECURE_COOKIE=true \
+            SESSION_SAME_SITE=none
+          flyctl deploy --app "$PREVIEW_APP" --remote-only
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: wcf2026/frontend/pnpm-lock.yaml
+
+      - name: Build & deploy CF Pages preview
+        working-directory: wcf2026/frontend
+        env:
+          VITE_API_BASE_URL: https://wcf2026-backend-pr-${{ github.event.pull_request.number }}.fly.dev
+        run: |
+          pnpm install --frozen-lockfile
+          cp ../infra/cloudflare-pages/_headers public/_headers
+          cp ../infra/cloudflare-pages/_redirects public/_redirects
+          pnpm build
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy wcf2026/frontend/dist --project-name=wcf2026-frontend --branch=pr-${{ github.event.pull_request.number }}
+
+      - name: Comment preview URLs on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            Preview environment for PR #${{ github.event.pull_request.number }}:
+            - Frontend: https://pr-${{ github.event.pull_request.number }}.wcf2026-frontend.pages.dev
+            - Backend:  https://wcf2026-backend-pr-${{ github.event.pull_request.number }}.fly.dev/api/v1/health
+            - Neon branch: pr-${{ github.event.pull_request.number }}
+
+  down:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Destroy Fly preview app
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl apps destroy wcf2026-backend-pr-${{ github.event.pull_request.number }} --yes || true
+
+      - name: Delete Neon branch
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: pr-${{ github.event.pull_request.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
