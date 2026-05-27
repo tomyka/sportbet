@@ -37,3 +37,72 @@ Each PR gets:
 | Backend deployed but broken | `flyctl releases list` → `flyctl deploy --image <previous>` |
 | Frontend deployed but broken | Cloudflare Pages → Deployments → Rollback button |
 | Bad migration | `flyctl ssh console -a wcf2026-api` → `php artisan migrate:rollback` |
+
+## Required GitHub secrets and variables
+
+### Secrets
+
+| Secret / Var               | Where to get it                         | Used in                       |
+|----------------------------|-----------------------------------------|-------------------------------|
+| `FLY_API_TOKEN`            | `flyctl auth token`                     | deploy-backend, preview-env   |
+| `CLOUDFLARE_API_TOKEN`     | CF dashboard → My Profile → API Tokens  | deploy-frontend, preview-env  |
+| `CLOUDFLARE_ACCOUNT_ID`    | CF dashboard sidebar                    | deploy-frontend, preview-env  |
+| `NEON_PROJECT_ID`          | Neon dashboard → project settings       | preview-env                   |
+| `NEON_API_KEY`             | Neon dashboard → API keys               | preview-env                   |
+| `PREVIEW_APP_KEY`          | `php artisan key:generate --show`       | preview-env                   |
+
+### Variables
+
+| Variable                   | Value                                   | Used in                       |
+|----------------------------|-----------------------------------------|-------------------------------|
+| `PROD_API_BASE_URL`        | `https://api.sportbet.lt`               | deploy-frontend               |
+
+### Production backend secrets (Fly.io)
+
+Set once via `flyctl secrets set --app wcf2026-backend ...` (not GitHub secrets):
+
+| Fly secret              | Value                                                              |
+|-------------------------|--------------------------------------------------------------------|
+| `APP_KEY`               | `php artisan key:generate --show`                                  |
+| `APP_URL`               | `https://api.sportbet.lt`                                          |
+| `DB_CONNECTION`         | `pgsql`                                                            |
+| `DB_URL`                | Production Neon connection string (use the **pooled** endpoint)    |
+| `FRONTEND_URL`          | `https://app.sportbet.lt`                                          |
+| `SANCTUM_STATEFUL_DOMAINS` | `app.sportbet.lt`                                               |
+| `SESSION_DOMAIN`        | `.sportbet.lt`                                                     |
+| `SESSION_SECURE_COOKIE` | `true`                                                             |
+| `SESSION_SAME_SITE`     | `lax`                                                              |
+
+## One-time provisioning checklist
+
+1. **Register domain `sportbet.lt`** and point nameservers to Cloudflare.
+
+2. **Cloudflare Pages:** Create project `wcf2026-frontend`.
+   - Attach custom domain `app.sportbet.lt`.
+   - Set production environment variable: `VITE_API_BASE_URL=https://api.sportbet.lt`.
+
+3. **Fly.io:** Create app and attach custom domain.
+   ```bash
+   flyctl apps create wcf2026-backend --org personal
+   flyctl certs add api.sportbet.lt --app wcf2026-backend
+   ```
+   - Add CNAME in Cloudflare DNS: `api.sportbet.lt → wcf2026-backend.fly.dev` (proxy OFF).
+
+4. **Neon:** Create project.
+   - Copy `NEON_PROJECT_ID` and `NEON_API_KEY` (read-write scope) into GitHub Actions secrets.
+
+5. **Fly secrets:** Set production backend secrets per table above.
+   ```bash
+   flyctl secrets set --app wcf2026-backend \
+     APP_KEY=... \
+     APP_URL=https://api.sportbet.lt \
+     DB_CONNECTION=pgsql \
+     DB_URL=... \
+     FRONTEND_URL=https://app.sportbet.lt \
+     SANCTUM_STATEFUL_DOMAINS=app.sportbet.lt \
+     SESSION_DOMAIN=.sportbet.lt \
+     SESSION_SECURE_COOKIE=true \
+     SESSION_SAME_SITE=lax
+   ```
+
+6. **GitHub Actions:** Add the 6 secrets and 1 variable per tables above to repository settings → Secrets and variables → Actions.
