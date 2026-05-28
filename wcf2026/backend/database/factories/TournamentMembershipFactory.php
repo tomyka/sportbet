@@ -18,4 +18,14 @@ class TournamentMembershipFactory extends Factory
     {
         return ['user_id' => User::factory(), 'tournament_id' => Tournament::factory(), 'role' => 'player'];
     }
+
+    public function asOwner(): static
+    {
+        return $this->state(['role' => 'owner']);
+    }
+
+    public function asAdmin(): static
+    {
+        return $this->state(['role' => 'admin']);
+    }
 }
