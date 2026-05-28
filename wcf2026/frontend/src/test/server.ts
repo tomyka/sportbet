@@ -68,6 +68,40 @@ export const handlers = [
       ],
     })
   ),
+  // ─── Admin Tournament handlers ──────────────────────────────────────────────
+  http.post('*/api/v1/admin/tournaments', async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      data: {
+        id: 10,
+        name: body.name,
+        slug: body.slug,
+        sport: body.sport,
+        status: 'draft',
+        starts_at: null,
+        ends_at: null,
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    }, { status: 201 });
+  }),
+  http.patch('*/api/v1/admin/tournaments/:slug', async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      data: {
+        id: 1,
+        name: body.name ?? 'World Cup 2026',
+        slug: 'wc2026',
+        sport: body.sport ?? 'football',
+        status: body.status ?? 'open',
+        starts_at: null,
+        ends_at: null,
+        created_at: '2025-01-01T00:00:00Z',
+      },
+    });
+  }),
+  http.delete('*/api/v1/admin/tournaments/:slug', () =>
+    new HttpResponse(null, { status: 204 })
+  ),
 ];
 
 export const server = setupServer(...handlers);

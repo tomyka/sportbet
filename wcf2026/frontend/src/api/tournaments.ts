@@ -69,3 +69,57 @@ export const stagesQuery = (slug: string) =>
     queryKey: ['tournament-stages', slug],
     queryFn: () => fetchStages(slug),
   });
+
+export async function createTournament(data: {
+  name: string;
+  slug: string;
+  sport: string;
+  starts_at?: string;
+  ends_at?: string;
+}): Promise<{ data: Tournament }> {
+  const res = await fetch('/api/v1/admin/tournaments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (res.status === 422) {
+    const json = await res.json();
+    throw Object.assign(new Error('Validation error'), { errors: json.errors });
+  }
+  if (!res.ok) throw new Error('Failed to create tournament');
+  return res.json();
+}
+
+export async function updateTournament(
+  slug: string,
+  data: Partial<{
+    name: string;
+    sport: string;
+    status: string;
+    starts_at: string;
+    ends_at: string;
+  }>,
+): Promise<{ data: Tournament }> {
+  const res = await fetch(`/api/v1/admin/tournaments/${slug}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (res.status === 422) {
+    const json = await res.json();
+    throw Object.assign(new Error('Validation error'), { errors: json.errors });
+  }
+  if (!res.ok) throw new Error('Failed to update tournament');
+  return res.json();
+}
+
+export async function deleteTournament(slug: string): Promise<void> {
+  const res = await fetch(`/api/v1/admin/tournaments/${slug}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/json' },
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to delete tournament');
+}

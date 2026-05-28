@@ -20,6 +20,8 @@ import { Route as AuthRegisterRouteImport } from './routes/_auth.register'
 import { Route as AuthLoginRouteImport } from './routes/_auth.login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth.forgot-password'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppAdminTournamentsCreateRouteImport } from './routes/_app.admin.tournaments.create'
+import { Route as AppAdminTournamentsSlugEditRouteImport } from './routes/_app.admin.tournaments.$slug.edit'
 
 const TournamentsRoute = TournamentsRouteImport.update({
   id: '/tournaments',
@@ -74,6 +76,18 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminTournamentsCreateRoute =
+  AppAdminTournamentsCreateRouteImport.update({
+    id: '/admin/tournaments/create',
+    path: '/admin/tournaments/create',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppAdminTournamentsSlugEditRoute =
+  AppAdminTournamentsSlugEditRouteImport.update({
+    id: '/admin/tournaments/$slug/edit',
+    path: '/admin/tournaments/$slug/edit',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -85,6 +99,8 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-email': typeof AuthVerifyEmailRoute
   '/tournaments/$slug': typeof TournamentsSlugRoute
+  '/admin/tournaments/create': typeof AppAdminTournamentsCreateRoute
+  '/admin/tournaments/$slug/edit': typeof AppAdminTournamentsSlugEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,6 +112,8 @@ export interface FileRoutesByTo {
   '/reset-password': typeof AuthResetPasswordRoute
   '/verify-email': typeof AuthVerifyEmailRoute
   '/tournaments/$slug': typeof TournamentsSlugRoute
+  '/admin/tournaments/create': typeof AppAdminTournamentsCreateRoute
+  '/admin/tournaments/$slug/edit': typeof AppAdminTournamentsSlugEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,6 +128,8 @@ export interface FileRoutesById {
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_auth/verify-email': typeof AuthVerifyEmailRoute
   '/tournaments/$slug': typeof TournamentsSlugRoute
+  '/_app/admin/tournaments/create': typeof AppAdminTournamentsCreateRoute
+  '/_app/admin/tournaments/$slug/edit': typeof AppAdminTournamentsSlugEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -123,6 +143,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/tournaments/$slug'
+    | '/admin/tournaments/create'
+    | '/admin/tournaments/$slug/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -134,6 +156,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify-email'
     | '/tournaments/$slug'
+    | '/admin/tournaments/create'
+    | '/admin/tournaments/$slug/edit'
   id:
     | '__root__'
     | '/'
@@ -147,6 +171,8 @@ export interface FileRouteTypes {
     | '/_auth/reset-password'
     | '/_auth/verify-email'
     | '/tournaments/$slug'
+    | '/_app/admin/tournaments/create'
+    | '/_app/admin/tournaments/$slug/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -235,15 +261,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin/tournaments/create': {
+      id: '/_app/admin/tournaments/create'
+      path: '/admin/tournaments/create'
+      fullPath: '/admin/tournaments/create'
+      preLoaderRoute: typeof AppAdminTournamentsCreateRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/tournaments/$slug/edit': {
+      id: '/_app/admin/tournaments/$slug/edit'
+      path: '/admin/tournaments/$slug/edit'
+      fullPath: '/admin/tournaments/$slug/edit'
+      preLoaderRoute: typeof AppAdminTournamentsSlugEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRoute
+  AppAdminTournamentsCreateRoute: typeof AppAdminTournamentsCreateRoute
+  AppAdminTournamentsSlugEditRoute: typeof AppAdminTournamentsSlugEditRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRoute,
+  AppAdminTournamentsCreateRoute: AppAdminTournamentsCreateRoute,
+  AppAdminTournamentsSlugEditRoute: AppAdminTournamentsSlugEditRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
