@@ -1,5 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { RegisterForm } from '../features/auth/RegisterForm';
 
 export const Route = createFileRoute('/_auth/register')({
-  component: () => <div>Register — coming in Task 7.1</div>,
+  component: function RegisterPage() {
+    const navigate = useNavigate();
+    return <RegisterForm onSuccess={() => void navigate({ to: '/verify-email' })} />;
+  },
 });
