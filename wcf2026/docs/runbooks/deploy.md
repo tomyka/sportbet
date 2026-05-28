@@ -2,6 +2,75 @@
 
 > Maintained per phase. Phase 0 entries only — extend as features ship.
 
+## Local development smoke test
+
+Run after each phase to verify the Sanctum cookie round-trip works end-to-end.
+
+### Prerequisites
+
+```bash
+# 1. Start backend (via Herd or artisan serve)
+php artisan serve --port=8080           # from wcf2026/backend
+
+# 2. Start frontend dev server (separate terminal)
+pnpm dev                                # from wcf2026/frontend
+
+# 3. Seed a smoke user (idempotent)
+php artisan tinker --execute="App\Models\User::factory()->create(['email'=>'smoke@example.com','password'=>bcrypt('secret-pass')]);"
+```
+
+### Cookie round-trip verification (curl)
+
+```bash
+# Step 1 — Fetch CSRF cookie
+curl -c cookies.txt -b cookies.txt -s \
+  http://app.lvh.me:8080/sanctum/csrf-cookie
+
+XSRF=$(grep XSRF cookies.txt | awk '{print $7}' | python3 -c "import sys,urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))")
+
+# Step 2 — Login
+curl -c cookies.txt -b cookies.txt -s \
+  -X POST http://app.lvh.me:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -H "X-XSRF-TOKEN: $XSRF" \
+  -d '{"email":"smoke@example.com","password":"secret-pass"}' | python3 -m json.tool
+
+# Step 3 — Verify authenticated session
+curl -c cookies.txt -b cookies.txt -s \
+  http://app.lvh.me:8080/api/v1/auth/me | python3 -m json.tool
+
+# Step 4 — Logout
+curl -c cookies.txt -b cookies.txt -s \
+  -X POST http://app.lvh.me:8080/api/v1/auth/logout \
+  -H "X-XSRF-TOKEN: $XSRF"
+
+# Step 5 — Verify unauthenticated (expect 401)
+curl -c cookies.txt -b cookies.txt -s \
+  http://app.lvh.me:8080/api/v1/auth/me
+
+rm cookies.txt
+```
+
+Expected: Steps 2–3 return `data.email = "smoke@example.com"`. Step 5 returns HTTP 401.
+
+### Browser smoke test (Phase 1)
+
+1. Open `http://app.lvh.me:5173/register` — complete registration form → confirm "Check your email" shown.
+2. Open `http://app.lvh.me:5173/login` — login with `smoke@example.com` / `secret-pass` → confirm redirect to `/` and nav shows user name.
+3. Open `http://app.lvh.me:5173/profile` while logged out → confirm redirect to `/login`.
+4. Open `http://app.lvh.me:5173/forgot-password` → submit any email → confirm "Check your email" shown.
+
+### E2E (Playwright)
+
+```bash
+cd wcf2026/frontend
+pnpm e2e --project=chromium
+```
+
+Requires the full stack running (steps above). All 4 auth flows must pass.
+
+---
+
 ## Production
 
 ### Backend (Fly.io)
