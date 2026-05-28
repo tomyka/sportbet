@@ -55,7 +55,9 @@ class ScorePredictionController extends Controller
                 'tournament_id' => $tournament->id,
                 'home_score' => $request->integer('home_score'),
                 'away_score' => $request->integer('away_score'),
-                'predicted_winner_team_id' => $request->integer('predicted_winner_team_id') ?: null,
+                'predicted_winner_team_id' => $request->filled('predicted_winner_team_id')
+                    ? $request->integer('predicted_winner_team_id')
+                    : null,
                 'submitted_at' => now(),
             ]
         );

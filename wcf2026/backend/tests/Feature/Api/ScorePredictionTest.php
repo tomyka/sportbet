@@ -259,3 +259,28 @@ it('can submit prediction with optional predicted_winner_team_id', function () {
         ->assertOk()
         ->assertJsonPath('data.predicted_winner_team_id', $home->id);
 });
+
+it('validates home_score cannot exceed 99', function () {
+    ['tournament' => $tournament, 'fixture' => $fixture] = makeTournamentWithFixture();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->putJson("/api/v1/tournaments/{$tournament->slug}/fixtures/{$fixture->id}/prediction", [
+            'home_score' => 100,
+            'away_score' => 0,
+        ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['home_score']);
+});
+
+it('validates predicted_winner_team_id must exist in teams', function () {
+    ['tournament' => $tournament, 'fixture' => $fixture] = makeTournamentWithFixture();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->putJson("/api/v1/tournaments/{$tournament->slug}/fixtures/{$fixture->id}/prediction", [
+            'home_score'               => 1,
+            'away_score'               => 1,
+            'predicted_winner_team_id' => 999999,
+        ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['predicted_winner_team_id']);
+});
