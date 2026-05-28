@@ -43,3 +43,12 @@ Route::prefix('v1')->group(function () {
         Route::patch('/auth/me', ProfileController::class);
     });
 });
+
+// ─── Public Tournament Routes (no auth required) ─────────────────────────────
+Route::prefix('tournaments')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\TournamentController::class, 'index']);
+    Route::get('/{tournament:slug}', [\App\Http\Controllers\Api\TournamentController::class, 'show']);
+    Route::get('/{tournament:slug}/stages', [\App\Http\Controllers\Api\StageController::class, 'index']);
+    Route::get('/{tournament:slug}/teams', [\App\Http\Controllers\Api\TeamController::class, 'index']);
+    Route::get('/{tournament:slug}/fixtures', [\App\Http\Controllers\Api\FixtureController::class, 'index']);
+});
