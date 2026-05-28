@@ -52,6 +52,22 @@ Route::prefix('v1')->group(function () {
         Route::get('/{tournament:slug}/fixtures', [\App\Http\Controllers\Api\FixtureController::class, 'index']);
     });
 
+    // ─── Authenticated Prediction Routes ─────────────────────────────────────
+    Route::prefix('tournaments/{tournament:slug}')
+        ->middleware(['auth:sanctum', 'verified'])
+        ->scopeBindings()
+        ->group(function () {
+            // Score predictions
+            Route::get(
+                'predictions/score',
+                [\App\Http\Controllers\Api\ScorePredictionController::class, 'index']
+            );
+            Route::put(
+                'fixtures/{fixture}/prediction',
+                [\App\Http\Controllers\Api\ScorePredictionController::class, 'upsert']
+            );
+        });
+
     // ─── Admin Routes (auth:sanctum + verified) ──────────────────────────────
     Route::prefix('admin')
         ->middleware(['auth:sanctum', 'verified'])

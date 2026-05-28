@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Fixture extends Model
 {
@@ -53,5 +54,11 @@ class Fixture extends Model
     public function winner(): BelongsTo
     {
         return $this->belongsTo(Team::class, 'winner_team_id');
+    }
+
+    /** @return HasMany<ScorePrediction, $this> */
+    public function scorePredictions(): HasMany
+    {
+        return $this->hasMany(ScorePrediction::class);
     }
 }
