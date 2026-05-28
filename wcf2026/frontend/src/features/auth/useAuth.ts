@@ -30,8 +30,7 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: apiLogout,
     onSuccess: () => {
-      queryClient.setQueryData(ME_QUERY_KEY, null);
-      queryClient.invalidateQueries();
+      queryClient.clear();
     },
   });
 

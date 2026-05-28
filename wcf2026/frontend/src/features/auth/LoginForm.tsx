@@ -4,7 +4,9 @@ import { apiClient, ensureCsrfCookie } from '../../lib/api-client';
 
 type Me = { id: number; email: string; name: string };
 
-export function LoginForm() {
+type Props = { onSuccess?: () => void };
+
+export function LoginForm({ onSuccess }: Props = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [me, setMe] = useState<Me | null>(null);
@@ -15,7 +17,10 @@ export function LoginForm() {
       const res = await apiClient.post<{ data: Me }>('/api/v1/auth/login', { email, password });
       return res.data.data;
     },
-    onSuccess: setMe,
+    onSuccess: (data) => {
+      setMe(data);
+      onSuccess?.();
+    },
   });
 
   if (me) return <p>{me.email}</p>;
