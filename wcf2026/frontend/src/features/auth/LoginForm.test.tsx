@@ -3,13 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LoginForm } from './LoginForm';
 
-test('logs in and shows the user email on success', async () => {
+test('submits login form without error', async () => {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  const onSuccess = vi.fn();
   render(
     <QueryClientProvider client={qc}>
-      <LoginForm />
+      <LoginForm onSuccess={onSuccess} />
     </QueryClientProvider>,
   );
 
@@ -17,5 +18,8 @@ test('logs in and shows the user email on success', async () => {
   await userEvent.type(screen.getByLabelText(/password/i), 'secret-pass');
   await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-  expect(await screen.findByText('test@example.com')).toBeInTheDocument();
+  // Wait for mutation to complete
+  await screen.findByRole('button', { name: /sign in/i });
+  expect(onSuccess).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });

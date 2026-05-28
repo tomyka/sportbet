@@ -1,60 +1,39 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { apiClient, ensureCsrfCookie } from '../../lib/api-client';
-
-type Me = { id: number; email: string; name: string };
+import { login as apiLogin } from './authApi';
 
 type Props = { onSuccess?: () => void };
 
 export function LoginForm({ onSuccess }: Props = {}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [me, setMe] = useState<Me | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async () => {
-      await ensureCsrfCookie();
-      const res = await apiClient.post<{ data: Me }>('/api/v1/auth/login', { email, password });
-      return res.data.data;
-    },
-    onSuccess: (data) => {
-      setMe(data);
-      onSuccess?.();
-    },
+    mutationFn: () => apiLogin(email, password),
+    onSuccess: () => onSuccess?.(),
   });
-
-  if (me) return <p>{me.email}</p>;
 
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        mutation.mutate();
-      }}
-      className="p-4 space-y-2"
+      onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}
+      className="space-y-3"
     >
+      <h2 className="text-xl font-semibold">Sign in</h2>
       <label className="block">
         Email
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="block border"
-        />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          className="block w-full border rounded px-2 py-1 mt-1" required />
       </label>
       <label className="block">
         Password
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="block border"
-        />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+          className="block w-full border rounded px-2 py-1 mt-1" required />
       </label>
-      <button type="submit" disabled={mutation.isPending}>
-        Sign in
+      <button type="submit" disabled={mutation.isPending}
+        className="w-full bg-blue-600 text-white py-2 rounded">
+        {mutation.isPending ? 'Signing in…' : 'Sign in'}
       </button>
-      {mutation.isError && <p role="alert">Login failed</p>}
+      {mutation.isError && <p role="alert" className="text-red-600 text-sm">Login failed</p>}
     </form>
   );
 }
