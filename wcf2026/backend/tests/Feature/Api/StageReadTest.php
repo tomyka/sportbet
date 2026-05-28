@@ -10,7 +10,7 @@ it('returns stages for open tournament', function () {
     $t = Tournament::factory()->create(['status' => 'open']);
     Stage::factory()->count(3)->create(['tournament_id' => $t->id]);
 
-    $this->getJson("/api/tournaments/{$t->slug}/stages")
+    $this->getJson("/api/v1/tournaments/{$t->slug}/stages")
         ->assertOk()
         ->assertJsonCount(3, 'data');
 });
@@ -18,7 +18,7 @@ it('returns stages for open tournament', function () {
 it('returns 404 for stages of draft tournament (unauthenticated)', function () {
     $t = Tournament::factory()->draft()->create();
     Stage::factory()->create(['tournament_id' => $t->id]);
-    $this->getJson("/api/tournaments/{$t->slug}/stages")->assertNotFound();
+    $this->getJson("/api/v1/tournaments/{$t->slug}/stages")->assertNotFound();
 });
 
 it('allows global admin to see stages for a draft tournament', function () {
@@ -27,7 +27,7 @@ it('allows global admin to see stages for a draft tournament', function () {
     $admin = User::factory()->create(['is_global_admin' => true]);
 
     $this->actingAs($admin)
-        ->getJson("/api/tournaments/{$t->slug}/stages")
+        ->getJson("/api/v1/tournaments/{$t->slug}/stages")
         ->assertOk()
         ->assertJsonCount(2, 'data');
 });
@@ -43,7 +43,7 @@ it('allows tournament admin member to see stages for a draft tournament', functi
     ]);
 
     $this->actingAs($user)
-        ->getJson("/api/tournaments/{$t->slug}/stages")
+        ->getJson("/api/v1/tournaments/{$t->slug}/stages")
         ->assertOk()
         ->assertJsonCount(2, 'data');
 });
@@ -59,6 +59,6 @@ it('returns 404 for player member when requesting stages for a draft tournament'
     ]);
 
     $this->actingAs($user)
-        ->getJson("/api/tournaments/{$t->slug}/stages")
+        ->getJson("/api/v1/tournaments/{$t->slug}/stages")
         ->assertNotFound();
 });

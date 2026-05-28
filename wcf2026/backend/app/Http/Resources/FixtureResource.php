@@ -6,7 +6,6 @@ namespace App\Http\Resources;
 use App\Models\Fixture;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Carbon;
 
 /** @mixin Fixture */
 class FixtureResource extends JsonResource
@@ -14,10 +13,13 @@ class FixtureResource extends JsonResource
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
+        /** @var \Illuminate\Support\Carbon|null $kickoffAt */
+        $kickoffAt = $this->kickoff_at;
+
         return [
             'id' => $this->id,
             'round_id' => $this->round_id,
-            'kickoff_at' => $this->kickoff_at === null ? null : Carbon::parse($this->kickoff_at)->toIso8601String(),
+            'kickoff_at' => $kickoffAt?->toIso8601String(),
             'home_team_id' => $this->home_team_id,
             'away_team_id' => $this->away_team_id,
             'status' => $this->status,

@@ -6,7 +6,6 @@ namespace App\Http\Resources;
 use App\Models\Tournament;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Carbon;
 
 /** @mixin Tournament */
 class TournamentResource extends JsonResource
@@ -14,15 +13,20 @@ class TournamentResource extends JsonResource
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
+        /** @var \Illuminate\Support\Carbon|null $startsAt */
+        $startsAt = $this->starts_at;
+        /** @var \Illuminate\Support\Carbon|null $endsAt */
+        $endsAt = $this->ends_at;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'sport' => $this->sport,
             'status' => $this->status,
-            'starts_at' => $this->starts_at === null ? null : Carbon::parse($this->starts_at)->toIso8601String(),
-            'ends_at' => $this->ends_at === null ? null : Carbon::parse($this->ends_at)->toIso8601String(),
-            'created_at' => Carbon::parse($this->created_at)->toIso8601String(),
+            'starts_at' => $startsAt?->toIso8601String(),
+            'ends_at' => $endsAt?->toIso8601String(),
+            'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
 }
