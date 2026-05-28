@@ -1,5 +1,23 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { z } from 'zod';
+import { ResetPasswordForm } from '../features/auth/ResetPasswordForm';
+
+const searchSchema = z.object({
+  token: z.string().optional().default(''),
+  email: z.string().optional().default(''),
+});
 
 export const Route = createFileRoute('/_auth/reset-password')({
-  component: () => <div>Reset Password — coming in Task 7.2</div>,
+  validateSearch: searchSchema,
+  component: function ResetPasswordPage() {
+    const { token, email } = Route.useSearch();
+    const navigate = useNavigate();
+    return (
+      <ResetPasswordForm
+        token={token}
+        email={email}
+        onSuccess={() => void navigate({ to: '/login' })}
+      />
+    );
+  },
 });
