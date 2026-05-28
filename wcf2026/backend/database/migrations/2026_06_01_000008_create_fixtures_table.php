@@ -22,8 +22,8 @@ return new class extends Migration {
             $table->unsignedTinyInteger('away_score_pen')->nullable();
             $table->foreignId('winner_team_id')->nullable()->constrained('teams')->nullOnDelete();
             $table->boolean('neutral_venue')->default(false);
-            $table->tinyInteger('leg')->default(1);
-            $table->bigInteger('tie_id')->nullable(); // no FK — links two-leg ties
+            $table->unsignedTinyInteger('leg')->default(1);
+            $table->unsignedBigInteger('tie_id')->nullable(); // no FK — links two-leg ties
             $table->timestamp('original_kickoff_at')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
