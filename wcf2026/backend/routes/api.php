@@ -51,4 +51,36 @@ Route::prefix('v1')->group(function () {
         Route::get('/{tournament:slug}/teams', [\App\Http\Controllers\Api\TeamController::class, 'index']);
         Route::get('/{tournament:slug}/fixtures', [\App\Http\Controllers\Api\FixtureController::class, 'index']);
     });
+
+    // ─── Admin Routes (auth:sanctum + verified) ──────────────────────────────
+    Route::prefix('admin')
+        ->middleware(['auth:sanctum', 'verified'])
+        ->group(function () {
+            // Tournament CRUD
+            Route::post('tournaments', [\App\Http\Controllers\Api\Admin\TournamentAdminController::class, 'store']);
+            Route::put('tournaments/{tournament:slug}', [\App\Http\Controllers\Api\Admin\TournamentAdminController::class, 'update']);
+            Route::delete('tournaments/{tournament:slug}', [\App\Http\Controllers\Api\Admin\TournamentAdminController::class, 'destroy']);
+
+            // Nested resources — scopeBindings() prevents cross-tournament writes
+            Route::prefix('tournaments/{tournament:slug}')
+                ->scopeBindings()
+                ->group(function () {
+                    Route::post('teams', [\App\Http\Controllers\Api\Admin\TeamAdminController::class, 'store']);
+                    Route::put('teams/{team}', [\App\Http\Controllers\Api\Admin\TeamAdminController::class, 'update']);
+                    Route::delete('teams/{team}', [\App\Http\Controllers\Api\Admin\TeamAdminController::class, 'destroy']);
+
+                    Route::post('stages', [\App\Http\Controllers\Api\Admin\StageAdminController::class, 'store']);
+                    Route::delete('stages/{stage}', [\App\Http\Controllers\Api\Admin\StageAdminController::class, 'destroy']);
+
+                    Route::post('stages/{stage}/rounds', [\App\Http\Controllers\Api\Admin\RoundAdminController::class, 'store']);
+                    Route::delete('stages/{stage}/rounds/{round}', [\App\Http\Controllers\Api\Admin\RoundAdminController::class, 'destroy']);
+
+                    Route::post('groups', [\App\Http\Controllers\Api\Admin\GroupAdminController::class, 'store']);
+                    Route::delete('groups/{group}', [\App\Http\Controllers\Api\Admin\GroupAdminController::class, 'destroy']);
+
+                    Route::post('fixtures', [\App\Http\Controllers\Api\Admin\FixtureAdminController::class, 'store']);
+                    Route::put('fixtures/{fixture}', [\App\Http\Controllers\Api\Admin\FixtureAdminController::class, 'update']);
+                    Route::delete('fixtures/{fixture}', [\App\Http\Controllers\Api\Admin\FixtureAdminController::class, 'destroy']);
+                });
+        });
 });

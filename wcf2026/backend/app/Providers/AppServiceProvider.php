@@ -13,6 +13,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Gate::policy(
+            \App\Models\Tournament::class,
+            \App\Policies\TournamentPolicy::class
+        );
+
         // Login: 5 attempts per minute per IP
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());

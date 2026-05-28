@@ -52,6 +52,12 @@ class Tournament extends Model
         return $this->hasMany(Fixture::class);
     }
 
+    /** @return HasMany<Group, $this> */
+    public function groups(): HasMany
+    {
+        return $this->hasMany(Group::class);
+    }
+
     public function isDraft(): bool
     {
         return $this->status === 'draft';
