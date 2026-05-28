@@ -6,7 +6,7 @@ import { TanStackRouterVite } from '@tanstack/router-vite-plugin';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    TanStackRouterVite(),
+    TanStackRouterVite({ routeFileIgnorePattern: '.*\\.test\\.(ts|tsx)$' }),
     react(),
     VitePWA({
       registerType: 'autoUpdate',

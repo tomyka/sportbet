@@ -39,6 +39,35 @@ export const handlers = [
   }),
   http.post('*/api/v1/auth/password', () => new HttpResponse(null, { status: 204 })),
   http.post('*/api/v1/auth/email/resend', () => new HttpResponse(null, { status: 204 })),
+  // ─── Tournament handlers ────────────────────────────────────────────────────
+  http.get('*/api/v1/tournaments', () =>
+    HttpResponse.json({
+      data: [
+        {
+          id: 1, name: 'World Cup 2026', slug: 'wc2026', sport: 'football',
+          status: 'open', starts_at: null, ends_at: null, created_at: '2025-01-01T00:00:00Z',
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, total: 1 },
+    })
+  ),
+  http.get('*/api/v1/tournaments/wc2026', () =>
+    HttpResponse.json({
+      data: {
+        id: 1, name: 'World Cup 2026', slug: 'wc2026', sport: 'football',
+        status: 'open', starts_at: null, ends_at: null, created_at: '2025-01-01T00:00:00Z',
+      },
+    })
+  ),
+  http.get('*/api/v1/tournaments/not-found', () => new HttpResponse(null, { status: 404 })),
+  http.get('*/api/v1/tournaments/not-found/stages', () => new HttpResponse(null, { status: 404 })),
+  http.get('*/api/v1/tournaments/wc2026/stages', () =>
+    HttpResponse.json({
+      data: [
+        { id: 1, name: 'Group Stage', ord: 0, type: 'group_stage', config: null, starts_at: null, locks_at: null },
+      ],
+    })
+  ),
 ];
 
 export const server = setupServer(...handlers);
