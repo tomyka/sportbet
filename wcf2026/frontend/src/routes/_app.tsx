@@ -1,11 +1,15 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from '@tanstack/react-router';
+import type { QueryClient } from '@tanstack/react-query';
 import { fetchMe } from '../features/auth/authApi';
 import { useAuth } from '../features/auth/useAuth';
 
+const ME_QUERY = { queryKey: ['auth', 'me'] as const, queryFn: fetchMe };
+
 export const Route = createFileRoute('/_app')({
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ location, context }) => {
+    const queryClient: QueryClient = context.queryClient;
     try {
-      await fetchMe();
+      await queryClient.fetchQuery(ME_QUERY);
     } catch {
       throw redirect({ to: '/login', search: { redirect: location.href } });
     }
