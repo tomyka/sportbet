@@ -26,9 +26,9 @@ class ScorePrediction extends Model
     protected function casts(): array
     {
         return [
-            'home_score' => 'integer',
-            'away_score' => 'integer',
-            'predicted_winner_team_id' => 'integer',
+            'home_score'   => 'integer',
+            'away_score'   => 'integer',
+            // predicted_winner_team_id is nullable; no cast — PHP receives it as int|null natively
             'submitted_at' => 'datetime',
         ];
     }

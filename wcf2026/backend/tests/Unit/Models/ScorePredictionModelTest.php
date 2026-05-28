@@ -38,6 +38,11 @@ it('predicted_winner_team_id is fillable and nullable', function () {
         ->and($p->predicted_winner_team_id)->toBeNull();
 });
 
+it('score prediction belongs to a predicted winner team', function () {
+    $prediction = new ScorePrediction();
+    expect($prediction->predictedWinner())->toBeInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class);
+});
+
 it('factory creates fixture in the same tournament as the prediction', function () {
     $prediction = ScorePrediction::factory()->create();
     $fixture = Fixture::query()->findOrFail($prediction->fixture_id);
