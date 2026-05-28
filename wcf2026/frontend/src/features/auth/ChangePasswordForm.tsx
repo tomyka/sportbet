@@ -13,10 +13,18 @@ export function ChangePasswordForm() {
     onSuccess: () => setDone(true),
   });
 
+  if (done) {
+    return (
+      <section className="space-y-3">
+        <h3 className="font-medium">Change password</h3>
+        <p className="text-green-600">Password changed successfully.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-3">
       <h3 className="font-medium">Change password</h3>
-      {done && <p className="text-green-600">Password changed successfully.</p>}
       <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-2">
         <label className="block">
           Current Password
