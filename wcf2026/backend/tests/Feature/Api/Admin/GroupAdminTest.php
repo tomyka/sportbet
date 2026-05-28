@@ -23,6 +23,19 @@ it('admin can create group for tournament stage', function () {
     ]);
 });
 
+it('admin can delete group', function () {
+    $admin = User::factory()->create(['is_global_admin' => true]);
+    $t = Tournament::factory()->create();
+    $stage = Stage::factory()->create(['tournament_id' => $t->id]);
+    $group = \App\Models\Group::create(['tournament_id' => $t->id, 'stage_id' => $stage->id, 'name' => 'Group B']);
+
+    $this->actingAs($admin)
+        ->deleteJson("/api/v1/admin/tournaments/{$t->slug}/groups/{$group->id}")
+        ->assertNoContent();
+
+    $this->assertDatabaseMissing('groups', ['id' => $group->id]);
+});
+
 it('cannot create group with a stage from a different tournament', function () {
     $admin = User::factory()->create(['is_global_admin' => true]);
     $t1 = Tournament::factory()->create();

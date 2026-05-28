@@ -11,6 +11,13 @@ it('unauthenticated cannot create tournament', function () {
     ])->assertUnauthorized();
 });
 
+it('unverified user cannot create tournament', function () {
+    $admin = User::factory()->unverified()->create(['is_global_admin' => true]);
+    $this->actingAs($admin)->postJson('/api/v1/admin/tournaments', [
+        'name' => 'T', 'slug' => 'tt', 'sport' => 'football',
+    ])->assertForbidden();
+});
+
 it('non-admin cannot create tournament', function () {
     $user = User::factory()->create();
     $this->actingAs($user)->postJson('/api/v1/admin/tournaments', [
