@@ -1,0 +1,42 @@
+app = "wcf2026-backend"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  release_command = "php artisan migrate --force"
+  strategy = "rolling"
+
+[env]
+  APP_ENV = "production"
+  LOG_CHANNEL = "stderr"
+  SESSION_DRIVER = "database"
+  SESSION_SECURE_COOKIE = "true"
+  SESSION_SAME_SITE = "lax"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/v1/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

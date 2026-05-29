@@ -1,0 +1,40 @@
+name: frontend-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ['wcf2026/frontend/**', '.github/workflows/frontend-ci.yml']
+  pull_request:
+    paths: ['wcf2026/frontend/**', '.github/workflows/frontend-ci.yml']
+
+defaults:
+  run:
+    working-directory: wcf2026/frontend
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: wcf2026/frontend/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm format:check
+      - run: pnpm test:coverage
+      - run: pnpm build
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: wcf2026/frontend/coverage

@@ -1,0 +1,45 @@
+name: deploy-frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wcf2026/frontend/**'
+      - 'wcf2026/infra/cloudflare-pages/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: wcf2026/frontend/pnpm-lock.yaml
+
+      - name: Build
+        working-directory: wcf2026/frontend
+        run: |
+          pnpm install --frozen-lockfile
+          cp ../infra/cloudflare-pages/_headers public/_headers
+          cp ../infra/cloudflare-pages/_redirects public/_redirects
+          pnpm build
+        env:
+          VITE_API_BASE_URL: ${{ vars.PROD_API_BASE_URL }}
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy wcf2026/frontend/dist --project-name=wcf2026-frontend --branch=main

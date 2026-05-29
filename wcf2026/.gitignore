@@ -1,0 +1,53 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Env files (real envs never committed; examples are)
+.env
+.env.*
+!.env.example
+!.env.example.*
+
+# Logs & coverage
+*.log
+coverage/
+.nyc_output/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Test artifacts
+playwright-report/
+test-results/
+phpunit-report.xml
+.phpunit.cache/
+
+# Dependencies
+node_modules/
+vendor/
+
+# Composer lockfile MUST be committed for applications (override root .gitignore from legacy el2025)
+!composer.lock
+!**/composer.lock
+
+# PHP
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+!storage/framework/cache/data/.gitkeep
+!storage/framework/sessions/.gitkeep
+!storage/framework/views/.gitkeep
+!storage/logs/.gitkeep
+
+# Generated OpenAPI artifact (regenerate per build)
+docs/api/openapi.generated.yaml
