@@ -123,3 +123,84 @@ export async function deleteTournament(slug: string): Promise<void> {
   });
   if (!res.ok) throw new Error('Failed to delete tournament');
 }
+
+// ─── Fixture types ─────────────────────────────────────────────────────────
+
+export interface Fixture {
+  id: number;
+  round_id: number;
+  kickoff_at: string | null;
+  home_team_id: number;
+  away_team_id: number;
+  status: string; // scheduled | live | finished | postponed | cancelled
+  home_score: number | null;
+  away_score: number | null;
+  winner_team_id: number | null;
+}
+
+export interface ScorePrediction {
+  id: number;
+  fixture_id: number;
+  tournament_id: number;
+  home_score: number;
+  away_score: number;
+  predicted_winner_team_id: number | null;
+  submitted_at: string | null;
+}
+
+// ─── Fixture queries ────────────────────────────────────────────────────────
+
+async function fetchFixtures(slug: string): Promise<{ data: Fixture[] }> {
+  const res = await fetch(`/api/v1/tournaments/${slug}/fixtures`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to fetch fixtures');
+  return res.json();
+}
+
+export const fixturesQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ['tournament-fixtures', slug],
+    queryFn: () => fetchFixtures(slug),
+  });
+
+// ─── Prediction queries & mutations ────────────────────────────────────────
+
+async function fetchMyPredictions(slug: string): Promise<{ data: ScorePrediction[] }> {
+  const res = await fetch(`/api/v1/tournaments/${slug}/predictions/score`, {
+    credentials: 'include',
+  });
+  if (res.status === 401) return { data: [] }; // not logged in — return empty
+  if (!res.ok) throw new Error('Failed to fetch predictions');
+  return res.json();
+}
+
+export const myPredictionsQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ['tournament-predictions', slug],
+    queryFn: () => fetchMyPredictions(slug),
+  });
+
+export async function submitScorePrediction(
+  slug: string,
+  fixtureId: number,
+  homeScore: number,
+  awayScore: number,
+  predictedWinnerTeamId?: number | null,
+): Promise<{ data: ScorePrediction }> {
+  const res = await fetch(`/api/v1/tournaments/${slug}/fixtures/${fixtureId}/prediction`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      home_score: homeScore,
+      away_score: awayScore,
+      predicted_winner_team_id: predictedWinnerTeamId ?? null,
+    }),
+  });
+  if (res.status === 423) throw Object.assign(new Error('Locked'), { status: 423 });
+  if (res.status === 422) {
+    const json = await res.json();
+    throw Object.assign(new Error('Validation error'), { errors: json.errors });
+  }
+  if (!res.ok) throw new Error('Failed to submit prediction');
+  return res.json();
+}

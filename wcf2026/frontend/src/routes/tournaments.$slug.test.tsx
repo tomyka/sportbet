@@ -41,4 +41,18 @@ describe('TournamentDetailPage', () => {
     renderWithQuery(<TournamentDetailPage />);
     expect(screen.getByText(/not found/i)).toBeInTheDocument();
   });
+
+  it('renders fixtures section', async () => {
+    renderWithQuery(<TournamentDetailPage slug="wc2026" />);
+    await waitFor(() =>
+      expect(screen.getByText(/fixtures/i)).toBeInTheDocument()
+    );
+  });
+
+  it('shows finished fixture result', async () => {
+    renderWithQuery(<TournamentDetailPage slug="wc2026" />);
+    await waitFor(() =>
+      expect(screen.getByText('2 – 1')).toBeInTheDocument()
+    );
+  });
 });

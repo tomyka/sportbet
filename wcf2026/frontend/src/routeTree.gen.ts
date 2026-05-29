@@ -20,6 +20,7 @@ import { Route as AuthRegisterRouteImport } from './routes/_auth.register'
 import { Route as AuthLoginRouteImport } from './routes/_auth.login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth.forgot-password'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppTournamentsSlugPredictRouteImport } from './routes/_app.tournaments.$slug.predict'
 import { Route as AppAdminTournamentsCreateRouteImport } from './routes/_app.admin.tournaments.create'
 import { Route as AppAdminTournamentsSlugEditRouteImport } from './routes/_app.admin.tournaments.$slug.edit'
 
@@ -76,6 +77,12 @@ const AppProfileRoute = AppProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTournamentsSlugPredictRoute =
+  AppTournamentsSlugPredictRouteImport.update({
+    id: '/tournaments/$slug/predict',
+    path: '/tournaments/$slug/predict',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppAdminTournamentsCreateRoute =
   AppAdminTournamentsCreateRouteImport.update({
     id: '/admin/tournaments/create',
@@ -100,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof AuthVerifyEmailRoute
   '/tournaments/$slug': typeof TournamentsSlugRoute
   '/admin/tournaments/create': typeof AppAdminTournamentsCreateRoute
+  '/tournaments/$slug/predict': typeof AppTournamentsSlugPredictRoute
   '/admin/tournaments/$slug/edit': typeof AppAdminTournamentsSlugEditRoute
 }
 export interface FileRoutesByTo {
@@ -113,6 +121,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof AuthVerifyEmailRoute
   '/tournaments/$slug': typeof TournamentsSlugRoute
   '/admin/tournaments/create': typeof AppAdminTournamentsCreateRoute
+  '/tournaments/$slug/predict': typeof AppTournamentsSlugPredictRoute
   '/admin/tournaments/$slug/edit': typeof AppAdminTournamentsSlugEditRoute
 }
 export interface FileRoutesById {
@@ -129,6 +138,7 @@ export interface FileRoutesById {
   '/_auth/verify-email': typeof AuthVerifyEmailRoute
   '/tournaments/$slug': typeof TournamentsSlugRoute
   '/_app/admin/tournaments/create': typeof AppAdminTournamentsCreateRoute
+  '/_app/tournaments/$slug/predict': typeof AppTournamentsSlugPredictRoute
   '/_app/admin/tournaments/$slug/edit': typeof AppAdminTournamentsSlugEditRoute
 }
 export interface FileRouteTypes {
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/tournaments/$slug'
     | '/admin/tournaments/create'
+    | '/tournaments/$slug/predict'
     | '/admin/tournaments/$slug/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/tournaments/$slug'
     | '/admin/tournaments/create'
+    | '/tournaments/$slug/predict'
     | '/admin/tournaments/$slug/edit'
   id:
     | '__root__'
@@ -172,6 +184,7 @@ export interface FileRouteTypes {
     | '/_auth/verify-email'
     | '/tournaments/$slug'
     | '/_app/admin/tournaments/create'
+    | '/_app/tournaments/$slug/predict'
     | '/_app/admin/tournaments/$slug/edit'
   fileRoutesById: FileRoutesById
 }
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tournaments/$slug/predict': {
+      id: '/_app/tournaments/$slug/predict'
+      path: '/tournaments/$slug/predict'
+      fullPath: '/tournaments/$slug/predict'
+      preLoaderRoute: typeof AppTournamentsSlugPredictRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/admin/tournaments/create': {
       id: '/_app/admin/tournaments/create'
       path: '/admin/tournaments/create'
@@ -281,12 +301,14 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRoute
   AppAdminTournamentsCreateRoute: typeof AppAdminTournamentsCreateRoute
+  AppTournamentsSlugPredictRoute: typeof AppTournamentsSlugPredictRoute
   AppAdminTournamentsSlugEditRoute: typeof AppAdminTournamentsSlugEditRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRoute,
   AppAdminTournamentsCreateRoute: AppAdminTournamentsCreateRoute,
+  AppTournamentsSlugPredictRoute: AppTournamentsSlugPredictRoute,
   AppAdminTournamentsSlugEditRoute: AppAdminTournamentsSlugEditRoute,
 }
 

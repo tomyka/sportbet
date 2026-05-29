@@ -61,6 +61,7 @@ export const handlers = [
   ),
   http.get('*/api/v1/tournaments/not-found', () => new HttpResponse(null, { status: 404 })),
   http.get('*/api/v1/tournaments/not-found/stages', () => new HttpResponse(null, { status: 404 })),
+  http.get('*/api/v1/tournaments/not-found/fixtures', () => new HttpResponse(null, { status: 404 })),
   http.get('*/api/v1/tournaments/wc2026/stages', () =>
     HttpResponse.json({
       data: [
@@ -101,6 +102,54 @@ export const handlers = [
   }),
   http.delete('*/api/v1/admin/tournaments/:slug', () =>
     new HttpResponse(null, { status: 204 })
+  ),
+  // ─── Fixture + Prediction handlers ─────────────────────────────────────────
+  http.get('*/api/v1/tournaments/wc2026/fixtures', () =>
+    HttpResponse.json({
+      data: [
+        {
+          id: 101, round_id: 1,
+          kickoff_at: new Date(Date.now() + 86400000).toISOString(),
+          home_team_id: 1, away_team_id: 2,
+          status: 'scheduled',
+          home_score: null, away_score: null, winner_team_id: null,
+        },
+        {
+          id: 102, round_id: 1,
+          kickoff_at: new Date(Date.now() - 86400000).toISOString(),
+          home_team_id: 3, away_team_id: 4,
+          status: 'finished',
+          home_score: 2, away_score: 1, winner_team_id: 3,
+        },
+      ],
+    })
+  ),
+  http.get('*/api/v1/tournaments/wc2026/predictions/score', () =>
+    HttpResponse.json({
+      data: [
+        {
+          id: 1, fixture_id: 101, tournament_id: 1,
+          home_score: 2, away_score: 0,
+          predicted_winner_team_id: null,
+          submitted_at: '2026-06-01T10:00:00Z',
+        },
+      ],
+    })
+  ),
+  http.put('*/api/v1/tournaments/wc2026/fixtures/101/prediction', async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      data: {
+        id: 1, fixture_id: 101, tournament_id: 1,
+        home_score: body.home_score as number,
+        away_score: body.away_score as number,
+        predicted_winner_team_id: (body.predicted_winner_team_id as number | null) ?? null,
+        submitted_at: new Date().toISOString(),
+      },
+    });
+  }),
+  http.put('*/api/v1/tournaments/wc2026/fixtures/102/prediction', () =>
+    new HttpResponse(null, { status: 423 })
   ),
 ];
 
