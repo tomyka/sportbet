@@ -142,8 +142,8 @@ export interface ScorePrediction {
   id: number;
   fixture_id: number;
   tournament_id: number;
-  home_score: number;
-  away_score: number;
+  home_score: number | null;
+  away_score: number | null;
   predicted_winner_team_id: number | null;
   submitted_at: string | null;
 }

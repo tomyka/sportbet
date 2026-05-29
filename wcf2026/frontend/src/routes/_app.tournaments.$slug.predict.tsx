@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -33,6 +33,20 @@ function FixturePredictionRow({ fixture, existing, slug }: FixturePredictionRowP
   const [home, setHome] = useState<string>(existing?.home_score?.toString() ?? '');
   const [away, setAway] = useState<string>(existing?.away_score?.toString() ?? '');
   const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Resync inputs when the server returns an updated prediction (e.g., after invalidation)
+  useEffect(() => {
+    setHome(existing?.home_score?.toString() ?? '');
+    setAway(existing?.away_score?.toString() ?? '');
+  }, [existing?.id, existing?.home_score, existing?.away_score]);
+
+  // Cleanup the "Saved!" dismiss timer on unmount to prevent state updates after unmount
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, []);
 
   const isLocked =
     fixture.status === 'live' ||
@@ -43,9 +57,10 @@ function FixturePredictionRow({ fixture, existing, slug }: FixturePredictionRowP
     mutationFn: () =>
       submitScorePrediction(slug, fixture.id, parseInt(home, 10), parseInt(away, 10)),
     onSuccess: () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
       setSaved(true);
       void qc.invalidateQueries({ queryKey: ['tournament-predictions', slug] });
-      setTimeout(() => setSaved(false), 2000);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     },
   });
 
